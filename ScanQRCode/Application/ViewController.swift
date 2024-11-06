@@ -105,7 +105,10 @@ class ViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
         view.addSubview(rectOfInterestArea)
         
         
-        captureSession.startRunning()
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.captureSession.startRunning()
+        }
+
         metadataOutput.rectOfInterest = previewLayer.metadataOutputRectConverted(fromLayerRect: scanRect)
         
     }
