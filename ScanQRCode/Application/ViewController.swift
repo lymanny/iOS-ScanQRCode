@@ -15,6 +15,9 @@ class ViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     var previewLayer        : AVCaptureVideoPreviewLayer!
     var rectOfInterestArea  = UIView()
     var darkView            = UIView()
+    var countdownLabel      = UILabel()
+    var countdownTimer      : Timer?
+    var countdownValue      = 5 // countdown starts at 5 seconds
     
     var scanRect:CGRect     = CGRect(x: 0, y: 0, width: 0, height: 0)
     let metadataOutput      = AVCaptureMetadataOutput()
@@ -32,6 +35,7 @@ class ViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
         super.viewDidLoad()
         
         setupCamera()
+        setupCountdownLabel()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -104,15 +108,22 @@ class ViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
         
         view.addSubview(rectOfInterestArea)
         
-        
         DispatchQueue.global(qos: .userInitiated).async {
             self.captureSession.startRunning()
         }
-
-        metadataOutput.rectOfInterest = previewLayer.metadataOutputRectConverted(fromLayerRect: scanRect)
         
+        metadataOutput.rectOfInterest = previewLayer.metadataOutputRectConverted(fromLayerRect: scanRect)
     }
     
+    func setupCountdownLabel() {
+        countdownLabel = UILabel(frame: CGRect(x: 0, y: 0, width: 150, height: 100)) // Increase the label size
+        countdownLabel.center = view.center
+        countdownLabel.textAlignment = .center
+        countdownLabel.font = UIFont.systemFont(ofSize: 48, weight: .bold) // Increase font size for visibility
+        countdownLabel.textColor = .black // Set text color to black
+        countdownLabel.isHidden = true
+        view.addSubview(countdownLabel)
+    }
     
     func failed() {
         let ac = UIAlertController(title: "Scanning not supported", message: "Your device does not support scanning a code from an item. Please use a device with a camera.", preferredStyle: .alert)
@@ -131,14 +142,16 @@ class ViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
             found(code: stringValue)
         }
         
-        dismiss(animated: true)
+        dismiss(animated: true) {
+            self.startCountdown() // Start the countdown after dismissing
+        }
     }
     
     func createFrame() -> CAShapeLayer {
         let height: CGFloat = self.rectOfInterestArea.frame.size.height
         let width: CGFloat = self.rectOfInterestArea.frame.size.width
         print(height, " " , width)
-        //let h = previewLayer.frame.size.height
+        
         let path = UIBezierPath()
         path.move(to: CGPoint(x: 5, y: 50))
         path.addLine(to: CGPoint(x: 5, y: 5))
@@ -152,6 +165,7 @@ class ViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
         path.move(to: CGPoint(x: width - 55, y: height - 5))
         path.addLine(to: CGPoint(x: width - 5, y: height - 5))
         path.addLine(to: CGPoint(x: width - 5, y: height - 55))
+        
         let shape = CAShapeLayer()
         shape.path = path.cgPath
         shape.strokeColor = UIColor.white.cgColor
@@ -164,4 +178,27 @@ class ViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
         print("===>", code)
     }
     
+    //Countdown Timer
+    func startCountdown() {
+        countdownValue = 5
+        countdownLabel.text = "\(countdownValue)"
+        countdownLabel.isHidden = false
+        
+        countdownTimer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(updateCountdown), userInfo: nil, repeats: true)
+    }
+    
+    @objc func updateCountdown() {
+        if countdownValue > 0 {
+            countdownValue -= 1
+            countdownLabel.text = "\(countdownValue)"
+        } else {
+            countdownTimer?.invalidate()
+            countdownLabel.isHidden = true
+            
+            // Restart the capture session
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.captureSession.startRunning()
+            }
+        }
+    }
 }
